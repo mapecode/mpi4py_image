@@ -3,7 +3,6 @@ import numpy as np
 import sys
 import time
 from mpi4py import MPI
-from PIL import Image
 from kernels import KERNELS as k
 
 
@@ -34,7 +33,7 @@ def join_pixels(new_pixels):
     return pixels
 
 
-def convolve2d(image, output, kernel, mult):
+def convolve2d(image, output, pix_per_node, rest_pix, kernel, mult):
     def mult_matrix(kernel, image, x, y, i, dim):
         if i < dim * dim:
             m = i // dim
@@ -45,29 +44,20 @@ def convolve2d(image, output, kernel, mult):
             return 0
 
     dim = kernel.shape[0]
-    image_h = image.shape[0]
     image_w = image.shape[1]
 
-    new_h = (image_h - dim) + 1
-    pix_per_node = new_h // size
-    rest_pix = new_h % size
     start = pix_per_node * rank
     end = start + pix_per_node if rank != size - 1 else start + pix_per_node + rest_pix
 
     for x in range(start, end):
         for y in range(dim, image_w - dim):
-            output[x-start][y] = mult_matrix(kernel, image, x, y, 0, dim)
-            output[x-start][y] //= mult
+            output[x - start][y] = mult_matrix(kernel, image, x, y, 0, dim)
+            output[x - start][y] //= mult
 
     return output
 
 
 if __name__ == '__main__':
-    # start = time.time()
-    # img = cv2.cvtColor(cv2.imread(sys.argv[1]), cv2.COLOR_BGR2GRAY)
-    # new_img = convolve2d(img, kernel=k["emboss"][0], mult=k["emboss"][1])
-    # cv2.imwrite('./result.jpg', new_img)
-    # print(round(time.time() - start, 2))
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
@@ -81,21 +71,27 @@ if __name__ == '__main__':
         image_w = img.shape[1]
         new_h = (image_h - dim) + 1
         new_w = (image_w - dim) + 1
+        pix_per_node = new_h // size
+        rest_pix = new_h % size
         empty_pixels = create_new_pixels(new_h, new_w)
     else:
         empty_pixels = None
         img = None
         kernel = None
+        pix_per_node = None
+        rest_pix = None
 
     empty_pixels = comm.scatter(empty_pixels, root=0)
     img = comm.bcast(img, root=0)
     kernel = comm.bcast(kernel, root=0)
+    pix_per_node = comm.bcast(pix_per_node, root=0)
+    rest_pix = comm.bcast(rest_pix, root=0)
 
-    new_pixels_div = convolve2d(img, empty_pixels, kernel=kernel[0], mult=kernel[1])
+    new_pixels_div = convolve2d(img, empty_pixels, pix_per_node, rest_pix, kernel=kernel[0], mult=kernel[1])
 
     new_pixels = comm.gather(new_pixels_div, root=0)
 
     if rank == 0:
         new_img = join_pixels(new_pixels)
-        cv2.imwrite('./result.jpg', new_img)
+        cv2.imwrite(sys.argv[2]+'.'+sys.argv[1].split(".")[-1], new_img)
         print(round(time.time() - start_time, 2))
