@@ -18,6 +18,6 @@ Más información en la [documentación](Memoria.pdf)
 
 ### Filtros aplicados
 
-![](examples/blur.png)
-![](examples/sobel.png)
-![](examples/others.png)
+![](examples/blur.PNG)
+![](examples/sobel.PNG)
+![](examples/others.PNG)
