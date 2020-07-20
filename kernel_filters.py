@@ -60,7 +60,6 @@ if __name__ == '__main__':
         pix_per_node = new_h // size
         rest_pix = new_h % size
     else:
-        empty_pixels = None
         img = None
         kernel = None
         pix_per_node = None
