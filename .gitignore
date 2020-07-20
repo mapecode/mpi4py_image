@@ -18,6 +18,5 @@ doc/Memoria.tex
 *.log
 *.blg
 *.bbl
-*.png
-*.jpg
+castillo.jpg
 doc/biblist.bib
